@@ -74,6 +74,12 @@
     /* Интерактивные билеты */
     .tickets-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;margin-top:26px}
     .ticket{position:relative;overflow:hidden;border:2px solid #ffffff2b;border-radius:25px;background:linear-gradient(150deg,#261630,#120c20);padding:28px;display:flex;flex-direction:column;gap:12px;transition:border-color .2s,transform .2s,box-shadow .2s}
+    .ticket.guest{background:radial-gradient(circle at 90% 0%,#bd73ff44,transparent 55%),linear-gradient(145deg,#2d1643,#150b23);border-color:#c888ff99}
+    .ticket.guest .ticket-pill{background:#d7b0ff;color:#251133;border-color:transparent}
+    .guest-code-box{margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+    .guest-code-box input{width:min(100%,270px);min-height:48px;padding:11px 14px;border:2px solid #b788da;border-radius:13px;background:#11091b;color:white;font:inherit;text-align:center;text-transform:uppercase;letter-spacing:.06em}
+    .guest-code-box label{width:100%;font-weight:800;color:#f1d9ff}
+    .guest-hint{font-size:.83rem;color:#c5b7d0!important;margin-top:12px!important}
     .ticket.vip{background:radial-gradient(circle at 95% 5%,#ec9b4140,transparent 55%),linear-gradient(145deg,#341839,#170c21);border-color:#ffae5980}
     .ticket.selected{border-color:#c3ff85;box-shadow:0 0 0 2px #c3ff8530,0 15px 50px #bdff8030;transform:translateY(-3px)}
     .ticket-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -124,7 +130,7 @@
             <a href="#secret" class="btn btn-main">👻 Узнать о госте</a>
             <a href="#tickets" class="btn btn-ghost">🎟️ Выбрать билет</a>
           </div>
-          <div class="tags"><span>🐱 Главная звезда — кошка</span><span>🦫 Команда капибар</span><span>🎃 Хэллоуин</span></div>
+          <div class="tags"><span>📅 31 октября 2026, 17:00</span><span>🐱 Главная звезда — кошка</span><span>🦫 Команда капибар</span><span>🎃 Хэллоуин</span></div>
         </div>
         <div class="poster-frame">
           <span class="spark a" aria-hidden="true">✨</span><span class="spark b" aria-hidden="true">🦇</span>
@@ -167,7 +173,7 @@
     </section>
     <section class="section" id="tickets" aria-labelledby="tickets-title">
       <div class="shell">
-        <div class="section-head"><div><p class="kicker">🎟️ Выбери свой пропуск</p><h2 id="tickets-title">Билеты на <strong>ДИКУЮ БУСКАНДУ</strong></h2><p class="sub">Обычный или VIP? Выбирай! Это праздничные виртуальные билеты для сайта, не покупка и не бронь.</p></div></div>
+        <div class="section-head"><div><p class="kicker">🎟️ Выбери свой пропуск</p><h2 id="tickets-title">Билеты на <strong>ДИКУЮ БУСКАНДУ</strong></h2><p class="sub">Обычный, VIP или один из трёх пропусков «Секретный гость»! Праздничные виртуальные билеты, цена — 0 ₽.</p></div></div>
         <div class="tickets-grid">
           <article class="ticket" id="ticket-regular">
             <div class="ticket-head"><span class="ticket-emoji" aria-hidden="true">🎟️</span><span class="ticket-pill">СТАНДАРТ</span></div>
@@ -180,6 +186,12 @@
             <h3>VIP-БИЛЕТ</h3>
             <p>Диван, еда и напитки, фотозона и знакомство с артистами! Сама Бусканда одобряет. 🐱💜</p>
             <button type="button" class="btn btn-main" id="choose-vip" aria-pressed="false">👑 Выбрать VIP</button>
+          </article>
+          <article class="ticket guest" id="ticket-guest">
+            <div class="ticket-head"><span class="ticket-emoji" aria-hidden="true">👻</span><span class="ticket-pill">ТОЛЬКО 3 БИЛЕТА</span></div>
+            <h3>СЕКРЕТНЫЙ ГОСТЬ</h3>
+            <p>Все преимущества VIP и возможность лично поговорить с секретным гостем после концерта! 🎃👑</p>
+            <button type="button" class="btn btn-main" id="choose-guest" aria-pressed="false">🔐 Проверить особый код</button>
           </article>
         </div>
         <div class="ticket-result" id="ticket-result" role="status" aria-live="polite" hidden></div>
@@ -241,22 +253,68 @@
       document.querySelectorAll('.gallery-item').forEach(b=>b.addEventListener('click',()=>{const img=document.createElement('img');img.src=b.dataset.img;img.alt=b.dataset.title;openModal(img,b.dataset.title)}));
       close.addEventListener('click',closeModal);modal.addEventListener('click',e=>{if(e.target===modal)closeModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('open'))closeModal()});
       const result=document.getElementById('ticket-result');
-      const regular=document.getElementById('ticket-regular'),vip=document.getElementById('ticket-vip');
-      const regularBtn=document.getElementById('choose-regular'),vipBtn=document.getElementById('choose-vip');
-      function chooseTicket(type){
-        const isVip=type==='vip';
-        regular.classList.toggle('selected',!isVip);vip.classList.toggle('selected',isVip);
-        regularBtn.setAttribute('aria-pressed',String(!isVip));vipBtn.setAttribute('aria-pressed',String(isVip));
+      const regular=document.getElementById('ticket-regular');
+      const vip=document.getElementById('ticket-vip');
+      const guest=document.getElementById('ticket-guest');
+      const regularBtn=document.getElementById('choose-regular');
+      const vipBtn=document.getElementById('choose-vip');
+      const guestBtn=document.getElementById('choose-guest');
+      // Демонстрационная проверка в браузере. Использование кодов отмечается организатором вручную.
+      const guestCodes=new Set(['GUEST-001','GUEST-002','GUEST-003']);
+      function selectCard(type){
+        [[regular,regularBtn,'regular'],[vip,vipBtn,'vip'],[guest,guestBtn,'guest']].forEach(([card,btn,key])=>{
+          const selected=type===key;
+          card.classList.toggle('selected',selected);
+          btn.setAttribute('aria-pressed',String(selected));
+        });
         result.hidden=false;
-        if(isVip){
+      }
+      function scrollToTicket(){
+        result.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'nearest'});
+      }
+      function chooseTicket(type){
+        selectCard(type);
+        if(type==='vip'){
           result.innerHTML='<div class="vip-approval"><img src="assets/my-cat.webp" alt="Настоящая серая кошка Бусканда"><div><div class="approval-eyebrow">👑 VIP-БИЛЕТ ВЫБРАН</div><h3>🐱 ДИКАЯ БУСКАНДА ОДОБРЯЕТ!</h3><p>Мяу! VIP: диван, еда и напитки, фотозона и знакомство с артистами! 🎃✨</p></div></div>';
         }else{
           result.innerHTML='<div style="font-size:3rem" aria-hidden="true">🎟️🦫</div><h3>ОБЫЧНЫЙ БИЛЕТ ВЫБРАН!</h3><p>Капибары ждут тебя на хэллоуинском шоу! 🎃</p>';
         }
-        result.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'nearest'});
+        scrollToTicket();
       }
       regularBtn.addEventListener('click',()=>chooseTicket('regular'));
       vipBtn.addEventListener('click',()=>chooseTicket('vip'));
+      guestBtn.addEventListener('click',()=>{
+        selectCard('guest');
+        result.replaceChildren();
+        const icon=document.createElement('div');
+        icon.textContent='👻👑';icon.style.fontSize='3rem';
+        const title=document.createElement('h3');title.textContent='БИЛЕТ «СЕКРЕТНЫЙ ГОСТЬ»';
+        const intro=document.createElement('p');intro.textContent='Введи один из трёх выданных организатором кодов.';
+        const form=document.createElement('form');form.className='guest-code-box';
+        const label=document.createElement('label');label.htmlFor='guest-code-input';label.textContent='Код особого билета';
+        const input=document.createElement('input');input.id='guest-code-input';input.name='code';
+        input.placeholder='GUEST-XXX';input.autocomplete='off';input.required=true;input.maxLength=20;
+        const submit=document.createElement('button');submit.className='btn btn-main';submit.type='submit';submit.textContent='🔎 Проверить';
+        const feedback=document.createElement('p');feedback.id='guest-code-feedback';feedback.setAttribute('role','status');
+        feedback.style.width='100%';feedback.style.fontWeight='850';
+        const note=document.createElement('p');note.className='guest-hint';
+        note.textContent='Коды проверяются только на этой странице. Организатор отмечает использованные билеты вручную.';
+        form.append(label,input,submit,feedback);
+        result.append(icon,title,intro,form,note);
+        form.addEventListener('submit',event=>{
+          event.preventDefault();
+          const code=input.value.trim().toUpperCase();
+          if(guestCodes.has(code)){
+            feedback.style.color='#c9ff8b';
+            feedback.textContent='✅ Код '+code+' верный! Все преимущества VIP + разговор с секретным гостем после концерта. Покажи код организатору.';
+          }else{
+            feedback.style.color='#ffb3ad';
+            feedback.textContent='❌ Код не найден. Проверь написание или обратись к организатору.';
+          }
+        });
+        scrollToTicket();
+        input.focus({preventScroll:true});
+      });
       const up=document.getElementById('scrollTop');window.addEventListener('scroll',()=>up.classList.toggle('show',window.scrollY>650),{passive:true});up.addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
     })();
   </script>
